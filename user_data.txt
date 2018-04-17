@@ -1,0 +1,3 @@
+メールアドレスとパスワードを記入してください
+trello_email : b0000000@planet.kanazawa-it.ac.jp
+trello_pass  : password

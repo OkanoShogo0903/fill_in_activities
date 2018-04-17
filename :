@@ -57,9 +57,11 @@ if __name__=="__main__":
             e = re.match(email_pattern, line)
             p = re.match(pass_pattern, line)
             if e != None:
-                print(line[e.end():-1])
+                print(e.end())
+                print(line[e.end():])
             elif p != None:
-                print(line[p.end():-1])
+                print(p.end())
+                print(line[p.end():])
                 
             #trello_email = 
     #print lineTrelloLogin(trello_email, trello_pass)

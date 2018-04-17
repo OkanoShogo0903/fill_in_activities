@@ -31,3 +31,9 @@ $ conda create -n py27 python=2.7 package_name
 ~~~
 $ conda env remove -n (EXPORT_NAME)
 ~~~
+
+## TODO THINGS
+- 初回起動時は、guiを立ち上げるか、localhostでなんかするかにして、フォームにいろいろいれてもらう
+  - 学籍番号(ログインのため)
+  - 大学のサイトにログインするためのパスワード(hash化して保存する?)
+  - 初回使用時に必要なライブラリを入れてもらうためのPCのパスワード?

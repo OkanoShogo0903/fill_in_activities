@@ -1,6 +1,6 @@
 # FILL IN ACTIVITY RECORD!!
 ## Install  
-まずvimは神なので、vimを入れます  
+まずvimを入れます  
 ~~~
 $ sudo apt-get install vim
 ~~~
@@ -40,3 +40,14 @@ $ conda env remove -n (EXPORT_NAME)
 ## Why?
 kyassyu
 https://www.regentechlog.com/2014/08/31/browsercookiejar/
+
+## TODO
+- アプリケーション版
+  - GUI対応
+- 組み込み版
+  - カメラを用いた顔認識
+  - ラズパイ
+    IntelのDNNスティック使ってTensorFlowとか動かすか??
+  - Docker上でSQL運用
+    複数人のパスワードを扱うためのSQL
+    ハッシュとかどうこう

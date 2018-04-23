@@ -86,35 +86,68 @@ def HandClassScraping(_text):
     return useful_part
     
 
-def TrelloScraping():
+def getTrelloScraping():
     surround_pattern = r'(trello_email\s*:\s*)'
 
     res = driver.page_source.encode('utf-8')
-    #print(res)
-    #print("*****************")
     my_soup = BeautifulSoup(res, 'lxml') #要素を抽出 html.parser
-    #print("*****************")
-    main_comment_html = HandClassScraping(res.decode('utf-8'))
+    main_comment_html = HandClassScraping(res.decode('utf-8')) # <div class="js-list-actions">が閉じられるまでのコードを返す
 
     comment_soup = BeautifulSoup(main_comment_html, 'lxml')
-    comment_log = comment_soup.find_all("div",{"class": "current-comment js-friendly-links js-open-card"})
-    print(type(comment_log))
-    #print(comment_log) # 一つの投稿に関する投稿者や投稿時間等のデータの集まりのリスト(のようなものby BeautifulSoup公式)
-    #print(comment_log.)
+    exprains = comment_soup.find_all("div",{"class": "current-comment js-friendly-links js-open-card"})
+    #print("exprains :",type(exprains)) # <class 'bs4.element.ResultSet'>
+    #print(exprains) # 一つの投稿に関する投稿者や投稿時間等のデータの集まりのリスト(のようなものby BeautifulSoup公式)
     #print("******")
 
-    #print(window_module.phenom mod-comment-type)
-    #print(explains)
-
-    for explain in comment_log:
-        print (explain.text) 
+    modify_list = []
+    ''' Markdownで書かれたものを活動記録に記入する文に変える '''
+    for explain in exprains: # explain : <class 'bs4.element.Tag'>
+        # タグを外す
+        #print("contents:",type(str(explain.contents[0]))) # str
+        #print(explain.contents[0]) # html string
+        modify_list.append(explain.contents[0]))
+        print("*** END ***")
     print("*** END ***")
+    return modify_list
+
+
+def MarkdownToPlainText(_html):
+    #modify = re.sub(r"(<div*>)","",modify)
+    #start_pattern = re.compile(r'<div\sclass=\"js-list-actions\">') # 開いているページのコメント部分全体
+    #modify = re.sub(r"(@[a-zA-Z0-9_]*:)+","",modify)
+    #print(modify)
+
+    import pprint
+    pprint.pprint(_html)
+
+    soup = BeautifulSoup(_html, "lxml")
+    print("soup :",type(soup))
+    for s in soup(['div']):
+        print("s :",type(s))
+        s.decompose()
+
+    pprint.pprint(soup.get_text().replace("\n", ""))
+
+    #soup.find("div", {"class":"current-comment js-friendly-links js-open-card"}).replace_with("")
+    #text = soup.get_text()
+    # 強調表示やリストの処理
+    #text = ''.join(BeautifulSoup(_html, 'html.parser').findAll(text=True))
+    #print(text)
+    #return text
+
+    # TODO 時間とかの情報みて、いるのだけ扱う
 
 
 if __name__=="__main__":
     try:
         loadProfile()
+        # ココで学校ログイン、だめならsys.exit
         TrelloLogin(plain_trello_email, plain_trello_pass)
-        TrelloScraping()
+        hoge_list = getTrelloScraping()
+        for h in hoge_list:
+            if isAlreadySend(h) == True:
+                continue
+            MarkdownToPlainText(h)
+        # ココらへんで送信する 学校接続エラーのときはタイムスタンプを更新しない
     finally:
         driver.quit()

@@ -37,3 +37,6 @@ $ conda env remove -n (EXPORT_NAME)
   - 学籍番号(ログインのため)
   - 大学のサイトにログインするためのパスワード(hash化して保存する?)
   - 初回使用時に必要なライブラリを入れてもらうためのPCのパスワード?
+## Why?
+kyassyu
+https://www.regentechlog.com/2014/08/31/browsercookiejar/

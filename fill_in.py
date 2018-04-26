@@ -2,6 +2,7 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
+import datetime
 import re
 import types
 
@@ -14,13 +15,16 @@ options = Options()
 #options.add_argument('--headless') # headlessにする方法
 #options.add_argument('--disable-gpu')
 driver = webdriver.Chrome(chrome_options=options)
+driver.set_window_size(width=150,height=400)
 plain_trello_email = ""
 plain_trello_pass = ""
 trello_individual_url = 'https://trello.com/c/aIBEyEDk/21-bot%E3%83%86%E3%82%B9%E3%83%88'
 trello_login_url = 'https://trello.com/login?returnUrl=%2Fb%2FlSPupn89%2Frobocup2018-montr%25C3%25A9al-canada'
 trello_api_url = 'https://trello.com/app-key'
 trello_token_url = ['https://trello.com/1/authorize?key=<','>&name=&expiration=never&response_type=token&scope=read,write']
+latest_time_stamp = datetime.datetime.now()
 # [END General]
+
 
 def loadProfile():
     global plain_trello_email,plain_trello_pass
@@ -35,6 +39,23 @@ def loadProfile():
             elif p != None:
                 plain_trello_pass = line[p.end():-1]
     # dont raise error in mind
+
+
+def loadTimeStamp():
+    '''Load latest time stamp and set variable'''
+    global latest_time_stamp
+    pattern = r'(LatestTimeStamp\s*:\s*)' # 雛形に合わせてデータを取ってくる
+    with open('./internal_data.txt') as f:
+        for line in f: 
+            phrase = re.match(pattern, line)
+            if phrase != None:
+                time_string = line[phrase.end():-1] # 2018.1.1.0.0
+                string_list = time_string.split('.')
+                num_list = [int(s) for s in string_list]
+                print(num_list)
+                latest_time_stamp = datetime.datetime(*num_list) # リストを展開して渡す
+                print(latest_time_stamp)
+# [END LoadFunction]
 
 
 def TrelloLogin(_email, _password):
@@ -64,6 +85,7 @@ def TrelloLogin(_email, _password):
     time.sleep(1.5)
 
     #print(driver.page_source)
+# [END LoginFunction]
 
 
 def HandClassScraping(_text):
@@ -105,49 +127,134 @@ def getTrelloScraping():
         # タグを外す
         #print("contents:",type(str(explain.contents[0]))) # str
         #print(explain.contents[0]) # html string
-        modify_list.append(explain.contents[0]))
+        modify_list.append(explain.contents[0])
         print("*** END ***")
     print("*** END ***")
     return modify_list
+# [END ScrapingFunction]
 
 
-def MarkdownToPlainText(_html):
-    #modify = re.sub(r"(<div*>)","",modify)
-    #start_pattern = re.compile(r'<div\sclass=\"js-list-actions\">') # 開いているページのコメント部分全体
-    #modify = re.sub(r"(@[a-zA-Z0-9_]*:)+","",modify)
-    #print(modify)
+def isCheckTimeStamp(_d):
+    '''
+    receive <class 'datatime'>
+    コメントに入っている日付情報を見て、更新するべき情報かどうかを確認する
+    '''
+    return None
 
-    import pprint
-    pprint.pprint(_html)
 
-    soup = BeautifulSoup(_html, "lxml")
-    print("soup :",type(soup))
-    for s in soup(['div']):
-        print("s :",type(s))
-        s.decompose()
+def isCheckAddress(_str):
+    '''
+    receive <class 'str'>
+    '''
+    if _str == None:
+        return False
+    else:
+        return True
 
-    pprint.pprint(soup.get_text().replace("\n", ""))
 
-    #soup.find("div", {"class":"current-comment js-friendly-links js-open-card"}).replace_with("")
-    #text = soup.get_text()
-    # 強調表示やリストの処理
-    #text = ''.join(BeautifulSoup(_html, 'html.parser').findAll(text=True))
-    #print(text)
-    #return text
+class Comment:
+    """News infomation class"""
+    date_patterns = [\
+            re.compile(r'([0-1]?[0-9])(?:/|-|\.)([0-3]?[0-9])'),\
+    ]
+    # 4/01 ???
+    time_patterns = [\
+            re.compile(r'([0-2]?[0-9]):([0-5]?[0-9]) ?(?:~|-) ?([0-2]?[0-9]):([0-5]?[0-9])'),\
+    ]
+    address_patterns = [\
+            re.compile(r'to:(u|U)niv?'),\
+    ]
 
-    # TODO 時間とかの情報みて、いるのだけ扱う
+    def __init__(self, _plain_text):
+        self.plain_text = _plain_text
+        self.ExtractInfosFromPlainText()
+        #self.MarkDownToPlainText()
+
+
+    def ExtractInfosFromPlainText(self):
+        ''' separate to body_text,timestamp,address'''
+        # TIME STAMP
+        text = self.plain_text # <str>
+        for pattern in self.date_patterns: # re pattern
+            obj = pattern.search(text)
+            if obj == None:
+                return False # or, raise ERR
+            else:
+                #print(obj.groups())
+                month,day = obj.groups() # taple
+                
+                # set timestamp
+                year = datetime.date.today().year
+                self.timestamp = datetime.datetime(year=year,month=int(month),day=int(day))
+        print("time stamp : ",self.timestamp)
+
+        # ACTION TIME
+        self.activity_time = datetime.timedelta()
+        for pattern in self.time_patterns: # re pattern
+            obj_list = pattern.findall(text)
+            if obj == None:
+                return False # or, raise ERR
+            else:
+                for obj in obj_list:
+                    s_h,s_m,e_h,e_m = obj
+                    s_time = datetime.timedelta(hours=int(s_h),minutes=int(s_m))
+                    e_time = datetime.timedelta(hours=int(e_h),minutes=int(e_m))
+                    self.activity_time += e_time - s_time
+        print("activity time : ",self.activity_time)
+
+        # ADDRESS
+
+        #latest_time_stamp = 
+
+
+    def MarkdownToPlainText(self, _html):
+        #modify = re.sub(r"(<div*>)","",modify)
+        #start_pattern = re.compile(r'<div\sclass=\"js-list-actions\">') # 開いているページのコメント部分全体
+        #modify = re.sub(r"(@[a-zA-Z0-9_]*:)+","",modify)
+        #print(modify)
+
+        import pprint
+        pprint.pprint(_html)
+
+        soup = BeautifulSoup(_html, "lxml")
+        print("soup :",type(soup))
+        for s in soup(['div']):
+            print("s :",type(s))
+            s.decompose()
+
+        pprint.pprint(soup.get_text().replace("\n", ""))
+
+        #soup.find("div", {"class":"current-comment js-friendly-links js-open-card"}).replace_with("")
+        #text = soup.get_text()
+        # 強調表示やリストの処理
+        #text = ''.join(BeautifulSoup(_html, 'html.parser').findAll(text=True))
+        #print(text)
+        #return text
+
+        # TODO 時間とかの情報みて、いるのだけ扱う
 
 
 if __name__=="__main__":
     try:
         loadProfile()
-        # ココで学校ログイン、だめならsys.exit
+        loadTimeStamp()
+        # ココで学校ログイン、だめなら
+        #SchoolLogin()
         TrelloLogin(plain_trello_email, plain_trello_pass)
-        hoge_list = getTrelloScraping()
-        for h in hoge_list:
-            if isAlreadySend(h) == True:
-                continue
-            MarkdownToPlainText(h)
-        # ココらへんで送信する 学校接続エラーのときはタイムスタンプを更新しない
+        # ここでエラーでるならsys.exit、タイムスタンプの更新はしないことに注意
+        comment_list = getTrelloScraping()
+
+        # Create modify data from plain text
+        comment_class_list = []
+        for plain_text in comment_list:
+            j = Comment(plain_text)
+            comment_class_list.append(j)
+
+        for c in comment_class_list:
+            if isCheckAddress(c.address) == True:
+                if isCheckTimeStamp(c.datetime) == True:
+                    Send
+                    #MarkdownToPlainText(h)
+                    # ココらへんで送信する 学校接続エラーのときはタイムスタンプを更新しない
     finally:
         driver.quit()

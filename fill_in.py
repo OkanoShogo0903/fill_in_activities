@@ -116,7 +116,11 @@ def getTrelloScraping():
     main_comment_html = HandClassScraping(res.decode('utf-8')) # <div class="js-list-actions">が閉じられるまでのコードを返す
 
     comment_soup = BeautifulSoup(main_comment_html, 'lxml')
-    exprains = comment_soup.find_all("div",{"class": "current-comment js-friendly-links js-open-card"})
+    # マークダウンのためにhtmlのタグとかついたテキストを持ってくる方法
+    #exprains = comment_soup.find_all("div",{"class": "current-comment js-friendly-links js-open-card"})
+    # ユーザがTrelloに書いたテキストをそのまま使う方法
+    exprains = comment_soup.find_all("textarea",{"class": "comment-box-input js-text"})
+
     #print("exprains :",type(exprains)) # <class 'bs4.element.ResultSet'>
     #print(exprains) # 一つの投稿に関する投稿者や投稿時間等のデータの集まりのリスト(のようなものby BeautifulSoup公式)
     #print("******")
@@ -124,9 +128,13 @@ def getTrelloScraping():
     modify_list = []
     for explain in exprains: # explain : <class 'bs4.element.Tag'>
         # タグを外す
+        #print("contents:",type(explain.contents)) # list
         #print("contents:",type(explain.contents[0])) # tag
         #print(explain.contents[0]) # same to str(explain.contents[0])
-        modify_list.append(explain.contents[0])
+        string = ''.join(map(str,explain.contents))
+        #print(string)
+        modify_list.append(string)
+        
         #print("*** END ***")
     #print("*** END ***")
     return modify_list
@@ -138,7 +146,7 @@ def isCheckTimeStamp(_date):
     receive <class 'datatime'>
     コメントに入っている日付情報を見て、更新するべき情報かどうかを確認する
     '''
-    if type(_data) == None: # コメントに時刻の記入が無いとき
+    if type(_date) == None: # コメントに時刻の記入が無いとき
         return False
 
     if latest_time_stamp < _date: # 新しい投稿であるとき
@@ -167,25 +175,29 @@ class Comment:
             re.compile(r'([0-2]?[0-9]):([0-5]?[0-9]) ?(?:~|-) ?([0-2]?[0-9]):([0-5]?[0-9])'),\
     ]
     address_patterns = [\
-            re.compile(r'(?:to|To|TO):([a-zA-Z| ]+)'),\
+            re.compile(r'(?:to|To|TO):([a-zA-Z]+)'),\
     ]
     univ_pattern = \
             re.compile(r'(u|U)niv?')
 
-    def __init__(self, _tag):
-        # <class 'bs4.element.Tag'>
-        self.plain_text = str(_tag)
+    def __init__(self, _html_string):
+        ''' 変数初期化して、引数のテキストから整形とか情報の抽出とかする関数の呼び出す '''
+        self.plain_html_text = _html_string
         self.address = None
-        self.activity_time = datetime.timedelta()
         self.timestamp = None
+        self.body_text = None
+        self.activity_time = datetime.timedelta()
 
         self.ExtractInfosFromPlainText()
-        #self.MarkDownToPlainText()
+        self.MarkdownTextToPlainText()
 
 
     def ExtractInfosFromPlainText(self):
-        ''' separate to body_text,timestamp,address'''
-        text = self.plain_text # <str>
+        '''
+        引数のhtmlテキストからタイムスタンプ等の情報を抽出する
+        separate to body_text,timestamp,address
+        '''
+        text = self.plain_html_text # <str>
 
         # TIME STAMP
         for pattern in self.date_patterns: # re pattern
@@ -199,7 +211,7 @@ class Comment:
                 # set timestamp
                 year = datetime.date.today().year # int
                 self.timestamp = datetime.date(year=year,month=int(month),day=int(day))
-        print("time stamp : ",self.timestamp)
+        print("time stamp    : ",self.timestamp)
 
         # ACTIVITY TIME
         for pattern in self.time_patterns: # re pattern
@@ -219,40 +231,45 @@ class Comment:
             else:
                 #print(obj.groups()) # example   "to:univ" -> ('univ',)
                 string, = obj.groups() # for catch univ # taple string to plane string
-                if self.univ_pattern.search(string) == None:
+                if self.univ_pattern.search(string) != None:
                     self.address = 'university'
                 #elif :
-        print("address : ",self.address)
-
-        #latest_time_stamp = 
+        print("address       : ",self.address)
 
 
-    def MarkdownToPlainText(self):
+    def MarkdownTextToPlainText(self):
         ''' Markdownで書かれたものを活動記録に記入する文に変える '''
-        #modify = re.sub(r"(<div*>)","",modify)
-        #start_pattern = re.compile(r'<div\sclass=\"js-list-actions\">') # 開いているページのコメント部分全体
+        text = self.plain_html_text # <str>
         #modify = re.sub(r"(@[a-zA-Z0-9_]*:)+","",modify)
-        #print(modify)
 
         import pprint
-        pprint.pprint(_html)
+        # <\dev>とか<strong>とかの処理をする
 
-        soup = BeautifulSoup(_html, "lxml")
-        print("soup :",type(soup))
-        for s in soup(['div']):
-            print("s :",type(s))
-            s.decompose()
+        # 正規表現のパターンにマッチングする文字列を取り除く
+        pattern_markdown = [\
+                # 強調
+                re.compile(r'\*\*(.| )*\*\*'),\
+                # 
+                re.compile(r'\*(.| )*\*'),\
+                ]
+        pattern_sum = \
+                self.date_patterns + \
+                self.time_patterns + \
+                self.address_patterns
+        for p in pattern_sum:
+            text = re.sub(p,'',text)
+        for p in pattern_markdown:
+            # 複数のグループに対してそれぞれ本文だけを残して置換する?
+            # text = text.replace("*", "\n") でよくね？
+            print(p.groups())
+            text = re.sub(p,'', text)
 
-        pprint.pprint(soup.get_text().replace("\n", ""))
+        # 非正規表現のパターンを消してく
+        text = text.replace("<br/>", "\n")
 
-        #soup.find("div", {"class":"current-comment js-friendly-links js-open-card"}).replace_with("")
-        #text = soup.get_text()
-        # 強調表示やリストの処理
-        #text = ''.join(BeautifulSoup(_html, 'html.parser').findAll(text=True))
-        #print(text)
-        #return text
-
-        # TODO 時間とかの情報みて、いるのだけ扱う
+        self.body_text = text
+        print(self.body_text)
+        #pprint.pprint(self.body_text)
 
 
 if __name__=="__main__":
@@ -268,7 +285,8 @@ if __name__=="__main__":
         # Create modify data from plain text
         comment_class_list = []
         for s in comment_info_list:
-            print(s) # strっぽいもの <tag>
+            print('-'*50)
+            #print(s) # strっぽいもの
             j = Comment(s)
             comment_class_list.append(j)
 
@@ -280,3 +298,4 @@ if __name__=="__main__":
                     # ココらへんで送信する 学校接続エラーのときはタイムスタンプを更新しない
     finally:
         driver.quit()
+        #latest_time_stamp = 

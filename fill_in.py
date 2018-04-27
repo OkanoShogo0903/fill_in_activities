@@ -22,7 +22,7 @@ trello_individual_url = 'https://trello.com/c/aIBEyEDk/21-bot%E3%83%86%E3%82%B9%
 trello_login_url = 'https://trello.com/login?returnUrl=%2Fb%2FlSPupn89%2Frobocup2018-montr%25C3%25A9al-canada'
 trello_api_url = 'https://trello.com/app-key'
 trello_token_url = ['https://trello.com/1/authorize?key=<','>&name=&expiration=never&response_type=token&scope=read,write']
-latest_time_stamp = datetime.datetime.now()
+latest_time_stamp = None
 # [END General]
 
 
@@ -52,9 +52,9 @@ def loadTimeStamp():
                 time_string = line[phrase.end():-1] # 2018.1.1.0.0
                 string_list = time_string.split('.')
                 num_list = [int(s) for s in string_list]
-                print(num_list)
-                latest_time_stamp = datetime.datetime(*num_list) # リストを展開して渡す
-                print(latest_time_stamp)
+                #print(num_list)
+                latest_time_stamp = datetime.date(*num_list) # リストを展開して渡す
+                print("latest time stamp :",latest_time_stamp)
 # [END LoadFunction]
 
 
@@ -122,24 +122,29 @@ def getTrelloScraping():
     #print("******")
 
     modify_list = []
-    ''' Markdownで書かれたものを活動記録に記入する文に変える '''
     for explain in exprains: # explain : <class 'bs4.element.Tag'>
         # タグを外す
-        #print("contents:",type(str(explain.contents[0]))) # str
-        #print(explain.contents[0]) # html string
+        #print("contents:",type(explain.contents[0])) # tag
+        #print(explain.contents[0]) # same to str(explain.contents[0])
         modify_list.append(explain.contents[0])
-        print("*** END ***")
-    print("*** END ***")
+        #print("*** END ***")
+    #print("*** END ***")
     return modify_list
 # [END ScrapingFunction]
 
 
-def isCheckTimeStamp(_d):
+def isCheckTimeStamp(_date):
     '''
     receive <class 'datatime'>
     コメントに入っている日付情報を見て、更新するべき情報かどうかを確認する
     '''
-    return None
+    if type(_data) == None: # コメントに時刻の記入が無いとき
+        return False
+
+    if latest_time_stamp < _date: # 新しい投稿であるとき
+        return True
+    else: # 古い投稿であるとき
+        return False
 
 
 def isCheckAddress(_str):
@@ -162,52 +167,68 @@ class Comment:
             re.compile(r'([0-2]?[0-9]):([0-5]?[0-9]) ?(?:~|-) ?([0-2]?[0-9]):([0-5]?[0-9])'),\
     ]
     address_patterns = [\
-            re.compile(r'to:(u|U)niv?'),\
+            re.compile(r'(?:to|To|TO):([a-zA-Z| ]+)'),\
     ]
+    univ_pattern = \
+            re.compile(r'(u|U)niv?')
 
-    def __init__(self, _plain_text):
-        self.plain_text = _plain_text
+    def __init__(self, _tag):
+        # <class 'bs4.element.Tag'>
+        self.plain_text = str(_tag)
+        self.address = None
+        self.activity_time = datetime.timedelta()
+        self.timestamp = None
+
         self.ExtractInfosFromPlainText()
         #self.MarkDownToPlainText()
 
 
     def ExtractInfosFromPlainText(self):
         ''' separate to body_text,timestamp,address'''
-        # TIME STAMP
         text = self.plain_text # <str>
+
+        # TIME STAMP
         for pattern in self.date_patterns: # re pattern
             obj = pattern.search(text)
             if obj == None:
-                return False # or, raise ERR
+                pass
+                #return -1 # or, raise ERR
             else:
                 #print(obj.groups())
                 month,day = obj.groups() # taple
-                
                 # set timestamp
-                year = datetime.date.today().year
-                self.timestamp = datetime.datetime(year=year,month=int(month),day=int(day))
+                year = datetime.date.today().year # int
+                self.timestamp = datetime.date(year=year,month=int(month),day=int(day))
         print("time stamp : ",self.timestamp)
 
-        # ACTION TIME
-        self.activity_time = datetime.timedelta()
+        # ACTIVITY TIME
         for pattern in self.time_patterns: # re pattern
             obj_list = pattern.findall(text)
-            if obj == None:
-                return False # or, raise ERR
-            else:
-                for obj in obj_list:
-                    s_h,s_m,e_h,e_m = obj
-                    s_time = datetime.timedelta(hours=int(s_h),minutes=int(s_m))
-                    e_time = datetime.timedelta(hours=int(e_h),minutes=int(e_m))
-                    self.activity_time += e_time - s_time
+            for obj in obj_list:
+                s_h,s_m,e_h,e_m = obj
+                s_time = datetime.timedelta(hours=int(s_h),minutes=int(s_m))
+                e_time = datetime.timedelta(hours=int(e_h),minutes=int(e_m))
+                self.activity_time += e_time - s_time
         print("activity time : ",self.activity_time)
 
         # ADDRESS
+        for pattern in self.address_patterns: # re pattern
+            obj = pattern.search(text)
+            if obj == None:
+                pass
+            else:
+                #print(obj.groups()) # example   "to:univ" -> ('univ',)
+                string, = obj.groups() # for catch univ # taple string to plane string
+                if self.univ_pattern.search(string) == None:
+                    self.address = 'university'
+                #elif :
+        print("address : ",self.address)
 
         #latest_time_stamp = 
 
 
-    def MarkdownToPlainText(self, _html):
+    def MarkdownToPlainText(self):
+        ''' Markdownで書かれたものを活動記録に記入する文に変える '''
         #modify = re.sub(r"(<div*>)","",modify)
         #start_pattern = re.compile(r'<div\sclass=\"js-list-actions\">') # 開いているページのコメント部分全体
         #modify = re.sub(r"(@[a-zA-Z0-9_]*:)+","",modify)
@@ -242,19 +263,20 @@ if __name__=="__main__":
         #SchoolLogin()
         TrelloLogin(plain_trello_email, plain_trello_pass)
         # ここでエラーでるならsys.exit、タイムスタンプの更新はしないことに注意
-        comment_list = getTrelloScraping()
+        comment_info_list = getTrelloScraping()
 
         # Create modify data from plain text
         comment_class_list = []
-        for plain_text in comment_list:
-            j = Comment(plain_text)
+        for s in comment_info_list:
+            print(s) # strっぽいもの <tag>
+            j = Comment(s)
             comment_class_list.append(j)
 
         for c in comment_class_list:
             if isCheckAddress(c.address) == True:
-                if isCheckTimeStamp(c.datetime) == True:
-                    Send
-                    #MarkdownToPlainText(h)
+                if isCheckTimeStamp(c.timestamp) == True:
+                    pass
+                    #SendTo
                     # ココらへんで送信する 学校接続エラーのときはタイムスタンプを更新しない
     finally:
         driver.quit()

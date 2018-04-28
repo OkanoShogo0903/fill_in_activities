@@ -10,7 +10,7 @@ $ git clone https://github.com/OkanoShogo0903/fill_in_activities
 $ cd vim
 $ conda env export > fill_in.yaml
 ~~~
-次に、(このサイト)[http://vaaaaaanquish.hatenablog.com/entry/2017/06/06/194546]を見て、この通りにインストールしましょう
+次に、[このサイト](http://vaaaaaanquish.hatenablog.com/entry/2017/06/06/194546)を見て、この通りにインストールしましょう
 
 ## Hot Reference  
 It is conda command 

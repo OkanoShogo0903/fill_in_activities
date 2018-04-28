@@ -18,7 +18,9 @@ driver = webdriver.Chrome(chrome_options=options)
 driver.set_window_size(width=150,height=400)
 plain_trello_email = ""
 plain_trello_pass = ""
-trello_individual_url = 'https://trello.com/c/aIBEyEDk/21-bot%E3%83%86%E3%82%B9%E3%83%88'
+# 個人の方じゃないと、<comment-box-input js-text>がない
+trello_individual_comment_url = 'https://trello.com/c/7uDgTT3s/51-%E5%B2%A1%E9%87%8E'
+#trello_individual_comment_url = 'https://trello.com/c/aIBEyEDk/21-bot%E3%83%86%E3%82%B9%E3%83%88'
 trello_login_url = 'https://trello.com/login?returnUrl=%2Fb%2FlSPupn89%2Frobocup2018-montr%25C3%25A9al-canada'
 trello_api_url = 'https://trello.com/app-key'
 trello_token_url = ['https://trello.com/1/authorize?key=<','>&name=&expiration=never&response_type=token&scope=read,write']
@@ -81,7 +83,7 @@ def TrelloLogin(_email, _password):
     time.sleep(1.5)
 
     # サイト内の個人活動記録画面に遷移
-    driver.get(trello_individual_url)
+    driver.get(trello_individual_comment_url)
     time.sleep(1.5)
 
     #print(driver.page_source)
@@ -149,9 +151,12 @@ def isCheckTimeStamp(_date):
     if type(_date) == None: # コメントに時刻の記入が無いとき
         return False
 
-    if latest_time_stamp < _date: # 新しい投稿であるとき
-        return True
-    else: # 古い投稿であるとき
+    try:
+        if latest_time_stamp < _date: # 新しい投稿であるとき
+            return True
+        else: # 古い投稿であるとき
+            return False
+    except:
         return False
 
 
@@ -169,6 +174,7 @@ class Comment:
     """News infomation class"""
     date_patterns = [\
             re.compile(r'([0-1]?[0-9])(?:/|-|\.)([0-3]?[0-9])'),\
+            re.compile(r'([0-1]?[0-9])月([0-3]?[0-9])日?'),\
     ]
     # 4/01 ???
     time_patterns = [\
@@ -177,13 +183,21 @@ class Comment:
     address_patterns = [\
             re.compile(r'(?:to|To|TO):([a-zA-Z]+)'),\
     ]
-    univ_pattern = \
-            re.compile(r'(u|U)niv?')
+    university_pattern = [\
+            re.compile(r'(U|u)niv?')
+    ]
+    private_pattern = [\
+            re.compile(r'(P|p)rivate')
+    ]
+    day_of_the_week_pattern = [\
+            re.compile(r' [月火水木金土日]'),\
+            re.compile(r'\([月火水木金土日]\)')
+    ]
 
     def __init__(self, _html_string):
         ''' 変数初期化して、引数のテキストから整形とか情報の抽出とかする関数の呼び出す '''
         self.plain_html_text = _html_string
-        self.address = None
+        self.address = 'university' # デフォルトで大学行き
         self.timestamp = None
         self.body_text = None
         self.activity_time = datetime.timedelta()
@@ -229,11 +243,15 @@ class Comment:
             if obj == None:
                 pass
             else:
-                #print(obj.groups()) # example   "to:univ" -> ('univ',)
+                # obj.group example   "to:univ" -> ('univ',)
+                #print(obj.groups()) 
                 string, = obj.groups() # for catch univ # taple string to plane string
-                if self.univ_pattern.search(string) != None:
-                    self.address = 'university'
-                #elif :
+                for p in self.university_pattern + self.private_pattern: # re pattern
+                    if p.search(string) != None:
+                        self.address = 'university'
+                    elif p.search(string) != None:
+                        self.address = 'private'
+                    #elif :
         print("address       : ",self.address)
 
 
@@ -242,34 +260,35 @@ class Comment:
         text = self.plain_html_text # <str>
         #modify = re.sub(r"(@[a-zA-Z0-9_]*:)+","",modify)
 
-        import pprint
-        # <\dev>とか<strong>とかの処理をする
-
         # 正規表現のパターンにマッチングする文字列を取り除く
         pattern_markdown = [\
-                # 強調
-                re.compile(r'\*\*(.| )*\*\*'),\
-                # 
-                re.compile(r'\*(.| )*\*'),\
+                # 強調 \w \^wを使うか?
+                #re.compile(r'\*+(.| )+\*+'),\
+                # 顔文字消し
+                re.compile(r':(.)+:'),\
+                # 見出し消し
+                re.compile(r'#+ '),\
                 ]
         pattern_sum = \
                 self.date_patterns + \
                 self.time_patterns + \
-                self.address_patterns
+                self.address_patterns + \
+                self.university_pattern + \
+                self.private_pattern + \
+                self.day_of_the_week_pattern
         for p in pattern_sum:
             text = re.sub(p,'',text)
         for p in pattern_markdown:
             # 複数のグループに対してそれぞれ本文だけを残して置換する?
-            # text = text.replace("*", "\n") でよくね？
-            print(p.groups())
+            # text = text.replace("*", "") でよくね？
             text = re.sub(p,'', text)
 
         # 非正規表現のパターンを消してく
         text = text.replace("<br/>", "\n")
+        text = text.replace("*", "")
 
         self.body_text = text
         print(self.body_text)
-        #pprint.pprint(self.body_text)
 
 
 if __name__=="__main__":

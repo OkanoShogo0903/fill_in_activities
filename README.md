@@ -1,4 +1,6 @@
 # FILL IN ACTIVITY RECORD!!
+このアプリケーション作るにあたってQiitaで記事書いたので、一応貼っとく  
+[にょ](https://github.com/OkanoShogo0903/fill_in_activities)
 ## Install  
 まずvimを入れます  
 ~~~
@@ -44,6 +46,7 @@ https://www.regentechlog.com/2014/08/31/browsercookiejar/
 ## TODO
 - アプリケーション版
   - GUI対応
+  - notification.txtを作って、新しい機能とかをユーザに見やすくする
 - 組み込み版
   - カメラを用いた顔認識
   - ラズパイ
@@ -51,3 +54,8 @@ https://www.regentechlog.com/2014/08/31/browsercookiejar/
   - Docker上でSQL運用
     複数人のパスワードを扱うためのSQL
     ハッシュとかどうこう
+# ルール的な感じ
+- 4/12 ~ 4/13とかはNG
+- 年末やべぇよ...
+- 他の人のコメント扱い方問題
+
